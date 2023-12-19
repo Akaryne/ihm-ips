@@ -16,7 +16,8 @@ function App() {
 
   const [navChoice,setNavChoice] = useState(0)
   const [socket, setSocket] = useState()
-  const [dataGraph, setDataGraph] = useState([{"sp":"40","current":"0,24"}])
+  const [newData, setNewData] = useState({"speed":"0","current":"0"})
+  const [dataGraph, setDataGraph] = useState([{"speed":"0","current":"0"}])
   const [fakeData,setFakeData] = useState(0)
   const [fakeDataList,setFakeDataList] = useState([])
   const [data, setData] = useState([])
@@ -35,11 +36,18 @@ function App() {
     }
 
     function onDataReceive(data){
+      let receiveData = `${data}#`
+      let speed = receiveData.slice(data.indexOf('V') + 1, receiveData.indexOf('A'));
+      let current = receiveData.slice(data.indexOf('A') + 1,receiveData.indexOf('#'));
 
-      let speed = data.slice(data.indexOf('V')+1, data.indexOf('V') + 1 + 3 );
-      let current = data.slice(data.indexOf('A') + 1,data.indexOf('A') + 1 + 3);
 
-      setDataGraph([...dataGraph,{"sp":speed,"current":current}])
+      if(!isNaN(speed) && !isNaN(current)){
+
+        setNewData(p => p = {"speed":speed,"current":current})
+      }else{
+        console.log(receiveData)
+      }
+
     }
 
     newSocket.on('connect', onConnect);
@@ -51,6 +59,10 @@ function App() {
       newSocket.disconnect();
     };
   }, []);
+
+  useEffect(()=>{
+    setDataGraph([...dataGraph,{"speed":newData.speed,"current":newData.current}])
+  },[newData])
 
   useEffect(() => {
     const addDataGraph = () => {
@@ -64,10 +76,9 @@ function App() {
     
     
     useEffect(()=>{
-        setData([...fakeDataList,{"sp":`${fakeData}`}].slice(-30))
+        setData([...fakeDataList,{"sp":`${fakeData}`}].slice(-50))
         setFakeDataList([...fakeDataList,{"sp":`${fakeData}`}])
     },[fakeData])
-
 
   return (
     <section>
@@ -78,7 +89,7 @@ function App() {
       
         <DescriptionProject></DescriptionProject> :
 
-        <ControlMotor socket={socket} fakeDataGraph={data} dataMotor={dataGraph} ></ControlMotor>
+        <ControlMotor socket={socket} fakeDataGraph={data} fulData={dataGraph} dataMotor={dataGraph.slice(-200)} ></ControlMotor>
       }
       </Container>
 
