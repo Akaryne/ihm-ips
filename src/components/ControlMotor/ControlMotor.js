@@ -13,6 +13,11 @@ const headers = [
 
 function ControlMotor({socket, fakeDataGraph ,fulData, dataMotor}){
     const theme = useTheme()
+    const [durationMotorConsigne, setDurationMotorConsigne] = useState(0)
+    const [takeFirstMesure, setTakeFirstMesure] = useState(false)
+    const [energieElec, setEnergieElec] = useState(0)
+    const [takeMesure,setTakeMesure] = useState(false)
+    const [durationValid, setDurationValid] = useState(0)
     const [speed, setSpeed] = useState("")
     const [mode, setMode] = useState(0)
     const [rendement, setRendement] = useState(0)
@@ -24,26 +29,63 @@ function ControlMotor({socket, fakeDataGraph ,fulData, dataMotor}){
       }
     
     const handleMouvementMotor = (mode) => {
-        console.log(mode)
+        //console.log(mode)
         setMode(mode)
         socket && socket.emit("setMode",`M${mode}#`)
     }
 
     useEffect(()=>{
         let info = dataMotor.slice(-1)
-        let speed = info[0].speed * 25 * 3.14 / 30
 
-        let current = info[0].current / 1000
+        if(info[0].speed > 0.95*speed){
+            if(takeMesure){
+                setDurationValid(p => parseInt((new Date().getTime())))
+            }
+        }
 
-        let pIn = 24*current
-        let pOut = current*0.0545*speed
-
-        if(!isNaN(Math.round(pOut/pIn*100))){
-            setRendement(Math.round(pOut/pIn*100))
+        if(info[0].speed > 5){
+            if(takeFirstMesure){
+                setDurationMotorConsigne(p => parseInt((new Date().getTime())))
+                setTakeFirstMesure(false)
+            }
         }
 
         
     },[dataMotor])
+
+    const limitTension = (tension) => {
+        if(tension>24){
+            return 24
+        }
+        else{
+            return tension
+        }
+    }
+
+    const handleSpeedChanged = (event) => {
+        setSpeed(event.target.value);
+        setTakeFirstMesure(true)
+        setTakeMesure(true)
+        
+
+    }
+
+    useEffect(()=> {
+        setTakeMesure(false)
+        if(durationValid - durationMotorConsigne > 500){
+            let timeOk = durationValid/3 - durationMotorConsigne/3
+            let electriquePower = (dataMotor[dataMotor.length-1].current/1000)*(dataMotor[dataMotor.length-1].tension/10)*(timeOk/1000)
+            console.log("speed",dataMotor[dataMotor.length-1].speed* 25 * 3.14 / 30)
+            let powerCine = 1/2*(0.0000312)*((dataMotor[dataMotor.length-1].speed* 25 * 3.14 / 30)*(dataMotor[dataMotor.length-1].speed* 25 * 3.14 / 30))
+            console.log("Joules Elec :",electriquePower)
+            console.log("Joules cine :",powerCine) 
+            setEnergieElec(electriquePower)
+            setRendement((Math.round((powerCine/electriquePower)*100)/100)*100)
+            console.log("Vrai")
+
+        }
+    },[durationValid])
+
 
     return(
 
@@ -52,7 +94,7 @@ function ControlMotor({socket, fakeDataGraph ,fulData, dataMotor}){
             
             <Grid container rowSpacing={1} columnSpacing={{ xs: 1, sm: 2, md: 3 }}>
                 <Grid item xs={12} sm={8}>
-                    <Paper elevation={8} sx={{p:3,width:"100%",height:"50vh"}}>
+                    <Paper elevation={8} sx={{pb:3,width:"100%",height:"50vh"}}>
                         <Box sx={{display:"flex", justifyContent:"center"}}>
                             <Typography variant="h5" sx={{textAlign:"center"}}>Courbe vitesse moteur</Typography>
                             <Button ><CSVLink  {...csvReport}>CSV</CSVLink ></Button>
@@ -91,9 +133,7 @@ function ControlMotor({socket, fakeDataGraph ,fulData, dataMotor}){
                         <TextField fullWidth sx={{p:1}}
                             id="component-speed"
                             value={speed}
-                            onChange={(event) => {
-                                setSpeed(event.target.value);
-                            }}
+                            onChange={(event) => handleSpeedChanged(event)}
                         ></TextField>
                         <Button variant="contained" sx={{width:"100%",my:1, p:1}}
                             onClick={()=>{
@@ -128,15 +168,15 @@ function ControlMotor({socket, fakeDataGraph ,fulData, dataMotor}){
                                         <Paper elevation={3} sx={{ flexGrow: 1 , m:1,p:1,background:theme.palette.primary.light}}>
                                             <Typography align="center">Entrée</Typography>
                                             <Divider orientation="horizontal" variant="middle" />
-                                            <Typography fontWeight={900}>Puissance : </Typography>
-                                            <Typography>Tension : 24V</Typography>
+                                            <Typography fontWeight={900}>{`Puissance : ${Math.round(((limitTension(dataMotor[dataMotor.length-1].tension/10))*(dataMotor[dataMotor.length-1].current/1000))*10)/10}`}</Typography>
+                                            <Typography>{`Tension : ${limitTension(dataMotor[dataMotor.length-1].tension/10)}`}</Typography>
                                             <Typography>{`Courant : ${dataMotor[dataMotor.length-1].current/1000}`}</Typography>
                                             <Divider orientation="horizontal" variant="middle" />
                                         </Paper>
                                         <Paper elevation={3} sx={{ flexGrow: 1 , m:1,p:1,background:theme.palette.primary.light}}>
                                            <Typography align="center">Sortie</Typography>
                                            <Divider orientation="horizontal" variant="middle" />
-                                           <Typography fontWeight={900}>Puissance :</Typography>
+                                           <Typography fontWeight={900}>{`Energie electrique: ${Math.round(energieElec*10)/10}`}</Typography>
                                            <Typography>{`Vitesse : ${dataMotor[dataMotor.length-1].speed}`}</Typography>
                                            <Typography>{`Courant : ${dataMotor[dataMotor.length-1].current/1000}`}</Typography>
                                            <Divider orientation="horizontal" variant="middle" />

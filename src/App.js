@@ -16,8 +16,8 @@ function App() {
 
   const [navChoice,setNavChoice] = useState(0)
   const [socket, setSocket] = useState()
-  const [newData, setNewData] = useState({"speed":"0","current":"0"})
-  const [dataGraph, setDataGraph] = useState([{"speed":"0","current":"0"}])
+  const [newData, setNewData] = useState({"speed":"0","current":"0","tension":"0"})
+  const [dataGraph, setDataGraph] = useState([{"speed":"0","current":"0","tension":"0"}])
   const [fakeData,setFakeData] = useState(0)
   const [fakeDataList,setFakeDataList] = useState([])
   const [data, setData] = useState([])
@@ -38,12 +38,14 @@ function App() {
     function onDataReceive(data){
       let receiveData = `${data}#`
       let speed = receiveData.slice(data.indexOf('V') + 1, receiveData.indexOf('A'));
-      let current = receiveData.slice(data.indexOf('A') + 1,receiveData.indexOf('#'));
+      let current = receiveData.slice(data.indexOf('A') + 1,receiveData.indexOf('T'));
+      let tension = receiveData.slice(data.indexOf('T') + 1,receiveData.indexOf('#'));
+      
 
 
       if(!isNaN(speed) && !isNaN(current)){
 
-        setNewData(p => p = {"speed":speed,"current":current})
+        setNewData(p => p = {"speed":speed,"current":current,"tension":tension})
       }else{
         console.log(receiveData)
       }
@@ -61,7 +63,7 @@ function App() {
   }, []);
 
   useEffect(()=>{
-    setDataGraph([...dataGraph,{"speed":newData.speed,"current":newData.current}])
+    setDataGraph([...dataGraph,{"speed":newData.speed,"current":newData.current,"tension":newData.tension}])
   },[newData])
 
   useEffect(() => {
